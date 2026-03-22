@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Musical Connect - 맞춤형 필터 추천 & 마음함</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+        .musical-card {
+            background-color: #ffffff;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .musical-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 25px 30px -5px rgb(0 0 0 / 0.08), 0 10px 15px -6px rgb(0 0 0 / 0.08);
+        }
+        .active-filter {
+            background-color: #6366f1;
+            color: white;
+            border-color: #6366f1;
+        }
+        .modal-overlay {
+            background-color: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(8px);
+        }
+        /* 드롭다운 애니메이션 */
+        .filter-dropdown {
+            display: none;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s ease;
+        }
+        .filter-group:hover .filter-dropdown {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .info-overlay {
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s ease-out;
+        }
+        .musical-card:hover .info-overlay {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        /* 하트 애니메이션 */
+        .heart-btn {
+            transition: transform 0.2s ease;
+        }
+        .heart-btn:active {
+            transform: scale(1.3);
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- Header -->
+    <header class="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-200">
+        <div class="container mx-auto px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-2 cursor-pointer" onclick="resetToAll()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                </svg>
+                <h1 class="text-2xl font-bold tracking-tight text-slate-900">MUSICAL <span class="text-indigo-600">CONNECT</span></h1>
+            </div>
+            
+            <div class="flex items-center gap-3 w-full md:w-auto">
+                <!-- 검색창 -->
+                <div class="relative flex-grow md:w-64 lg:w-80">
+                    <input type="text" id="searchInput" placeholder="공연 제목 검색..." 
+                        class="w-full bg-slate-100 border border-slate-200 rounded-full py-2 px-10 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-slate-800 placeholder-slate-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 absolute left-4 top-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+
+                <!-- 마음함 버튼 -->
+                <button id="wishlistToggle" class="flex items-center gap-2 bg-pink-50 text-pink-600 px-4 py-2 rounded-full text-sm font-bold border border-pink-100 hover:bg-pink-100 transition-all">
+                    <svg xmlns="http://www.w3.org/2000/svg" id="wishlistIcon" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                    <span>마음함</span>
+                    <span id="wishlistCount" class="bg-pink-600 text-white text-[10px] px-1.5 py-0.5 rounded-full min-w-[18px]">0</span>
+                </button>
+
+                <!-- 필터 더보기 -->
+                <div class="relative filter-group">
+                    <button class="flex items-center gap-2 bg-indigo-50 text-indigo-700 px-4 py-2 rounded-full text-sm font-bold border border-indigo-100 hover:bg-indigo-100 transition-all">
+                        <span>필터</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    <div class="filter-dropdown absolute right-0 mt-2 w-[300px] md:w-[400px] bg-white border border-slate-200 rounded-3xl shadow-2xl p-6 z-50">
+                        <div class="mb-5">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">장르별 찾기</p>
+                            <div class="flex flex-wrap gap-2" id="genreContainer">
+                                <button class="filter-btn active-filter px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-100" data-type="genre" data-value="all">전체</button>
+                                <button class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-100 hover:bg-slate-50" data-type="genre" data-value="로맨스">로맨스</button>
+                                <button class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-100 hover:bg-slate-50" data-type="genre" data-value="드라마">드라마</button>
+                                <button class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-100 hover:bg-slate-50" data-type="genre" data-value="스릴러">스릴러</button>
+                                <button class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-100 hover:bg-slate-50" data-type="genre" data-value="판타지">판타지</button>
+                                <button class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-100 hover:bg-slate-50" data-type="genre" data-value="코미디">코미디</button>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">연령대 추천</p>
+                            <div class="flex flex-wrap gap-2" id="ageContainer">
+                                <button class="filter-btn active-filter px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-100" data-type="age" data-value="all">전체</button>
+                                <button class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-100 hover:bg-slate-50" data-type="age" data-value="전연령">전연령 추천</button>
+                                <button class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-100 hover:bg-slate-50" data-type="age" data-value="10대">10대</button>
+                                <button class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-100 hover:bg-slate-50" data-type="age" data-value="2030">2030 청년</button>
+                                <button class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-100 hover:bg-slate-50" data-type="age" data-value="4050">4050 장년</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-4 py-12">
+        <div class="flex justify-between items-end mb-8">
+            <div>
+                <h2 id="viewTitle" class="text-2xl font-bold text-slate-900">전체 공연 목록</h2>
+                <p id="viewSubtitle" class="text-slate-500 text-sm mt-1">현재 상영 중이거나 예정인 뮤지컬을 확인하세요.</p>
+            </div>
+        </div>
+
+        <!-- Musical Grid -->
+        <div id="musicalGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            <!-- Cards injected here -->
+        </div>
+
+        <!-- No Results -->
+        <div id="noResults" class="hidden text-center py-24">
+            <div class="bg-white p-12 rounded-[40px] shadow-sm border border-slate-100 inline-block mx-auto">
+                <div class="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+                <p class="text-xl font-bold text-slate-800 mb-2">공연을 찾을 수 없습니다</p>
+                <p class="text-slate-400 text-sm">필터를 변경하거나 마음함에 공연을 담아보세요.</p>
+                <button onclick="resetFilters()" class="mt-6 text-indigo-600 font-bold text-sm hover:underline">초기화하기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="musicalModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+        <div class="modal-overlay absolute inset-0"></div>
+        <div class="bg-white border border-slate-200 w-full max-w-3xl rounded-3xl overflow-hidden relative z-10 shadow-2xl">
+            <!-- 고정된 닫기 버튼 -->
+            <button id="closeModal" class="absolute top-6 right-6 text-slate-400 hover:text-slate-900 z-30 bg-white/80 hover:bg-white rounded-full p-1 shadow-sm transition-all border border-slate-100">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+
+    <footer class="mt-24 py-16 bg-white border-t border-slate-100 text-center text-slate-400 text-sm">
+        <p>© 2025 Musical Connect. 나만의 맞춤 뮤지컬 큐레이션.</p>
+    </footer>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global Variable Configuration
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'musical-connect-app';
+
+        // State Variables
+        let currentGenre = 'all';
+        let currentAge = 'all';
+        let searchQuery = '';
+        let showWishlistOnly = false;
+        let wishlist = new Set();
+        let userId = null;
+
+        const musicals = [
+            { id: 1, title: "오페라의 유령", category: "라이선스", genre: "클래식 / 로맨스", image: "https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?q=80&w=800&auto=format&fit=crop", description: "파리 오페라 하우스를 배경으로 천재적인 음악적 재능을 가졌으나 흉측한 외모로 지하에 숨어 사는 유령과 크리스틴의 비극적 사랑 이야기.", venue: "샤롯데씨어터", duration: "160분", targetAge: ["2030", "4050"], bookingUrl: "https://tickets.interpark.com/search?keyword=오페라의유령" },
+            { id: 2, title: "프랑켄슈타인", category: "창작", genre: "스릴러 / 드라마", image: "https://images.unsplash.com/photo-1514302240736-b1fee5985889?q=80&w=800&auto=format&fit=crop", description: "신이 되려 했던 인간과 인간을 동경했던 피조물, 두 남자의 아픈 운명을 그린 창작 뮤지컬의 신화.", venue: "블루스퀘어 신한카드홀", duration: "175분", targetAge: ["10대", "2030"], bookingUrl: "https://tickets.interpark.com/search?keyword=프랑켄슈타인" },
+            { id: 3, title: "레미제라블", category: "고전", genre: "역사 / 드라마", image: "https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?q=80&w=800&auto=format&fit=crop", description: "빵 한 조각을 훔친 죄로 19년의 감옥살이를 한 장발장의 파란만장한 삶과 프랑스 혁명을 배경으로 한 대서사시.", venue: "부산 드림씨어터", duration: "180분", targetAge: ["10대", "4050"], bookingUrl: "https://tickets.interpark.com/search?keyword=레미제라블" },
+            { id: 4, title: "시카고", category: "라이선스", genre: "재즈 / 코미디", image: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?q=80&w=800&auto=format&fit=crop", description: "1920년대 미국 시카고를 배경으로, 살인을 저지르고도 대중의 관심을 얻어 무죄 판결을 받으려는 수감자들의 이야기.", venue: "디큐브 링크아트센터", duration: "145분", targetAge: ["2030"], bookingUrl: "https://tickets.interpark.com/search?keyword=시카고" },
+            { id: 5, title: "웃는 남자", category: "창작", genre: "드라마 / 로맨스", image: "https://images.unsplash.com/photo-1460661419201-fd4ce18a8024?q=80&w=800&auto=format&fit=crop", description: "빅토르 위고의 소설 원작. 찢어진 입을 가진 그윈플렌의 여정을 통해 인간의 존엄성과 평등을 묻는 작품.", venue: "예술의전당 오페라극장", duration: "170분", targetAge: ["2030", "4050"], bookingUrl: "https://tickets.interpark.com/search?keyword=웃는남자" },
+            { id: 6, title: "지킬 앤 하이드", category: "라이선스", genre: "스릴러 / 드라마", image: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=800&auto=format&fit=crop", description: "인간의 내면에 공존하는 선과 악, 그 이중성을 강렬한 음악과 함께 보여주는 스릴러 뮤지컬의 대명사.", venue: "세종문화회관 대극장", duration: "170분", targetAge: ["2030", "4050"], bookingUrl: "https://tickets.interpark.com/search?keyword=지킬앤하이드" },
+            { id: 7, title: "장수탕 선녀님", category: "가족", genre: "판타지 / 코미디", image: "https://images.unsplash.com/photo-1520127877030-94fa651d0b4f?q=80&w=800&auto=format&fit=crop", description: "백희나 작가의 원작 동화 무대화. 동네 목욕탕에서 펼쳐지는 마법 같은 위로와 웃음의 이야기.", venue: "서울숲 씨어터", duration: "65분", targetAge: ["전연령"], bookingUrl: "https://search.interpark.com/search?q=장수탕선녀님" },
+            { id: 8, title: "위키드", category: "고전", genre: "판타지 / 드라마", image: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=800&auto=format&fit=crop", description: "오즈의 마법사 그 이전 이야기. 초록 마녀 엘파바와 금발 마녀 글린다의 우정과 성장을 그린 화려한 무대.", venue: "샤롯데씨어터", duration: "165분", targetAge: ["전연령", "10대", "2030"], bookingUrl: "https://tickets.interpark.com/search?keyword=위키드" },
+            { id: 9, title: "데스노트", category: "라이선스", genre: "스릴러 / 판타지", image: "https://images.unsplash.com/photo-1516280440614-37939bbacd81?q=80&w=800&auto=format&fit=crop", description: "이름이 적히면 죽는 노트를 주운 천재 고교생 라이토와 그에 맞서는 명탐정 엘(L)의 치열한 두뇌 싸움.", venue: "예스24 라이브홀", duration: "160분", targetAge: ["10대", "2030"], bookingUrl: "https://tickets.interpark.com/search?keyword=데스노트" },
+            { id: 10, title: "맘마미아!", category: "라이선스", genre: "코미디 / 로맨스", image: "https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=800&auto=format&fit=crop", description: "ABBA의 히트곡으로 구성된 주크박스 뮤지컬. 결혼을 앞둔 소피가 아빠를 찾기 위해 세 명의 남자를 초대하며 벌어지는 소동.", venue: "충무아트센터", duration: "160분", targetAge: ["4050", "전연령"], bookingUrl: "https://tickets.interpark.com/search?keyword=맘마미아" },
+            { id: 11, title: "레베카", category: "라이선스", genre: "스릴러 / 드라마", image: "https://images.unsplash.com/photo-1509248961158-e54f6934749c?q=80&w=800&auto=format&fit=crop", description: "맨덜리 저택을 지배하는 죽은 부인 레베카의 그림자와 그녀를 잊지 못하는 댄버스 부인의 광기를 그린 서스펜스.", venue: "블루스퀘어", duration: "170분", targetAge: ["2030", "4050"], bookingUrl: "https://tickets.interpark.com/search?keyword=레베카" },
+            { id: 12, title: "하데스타운", category: "라이선스", genre: "드라마 / 판타지", image: "https://images.unsplash.com/photo-1514525253361-bee8738009a7?q=80&w=800&auto=format&fit=crop", description: "오르페우스와 에우리디케 신화를 현대적으로 재해석한 작품. 독창적인 재즈 음악과 시적인 연출이 돋보이는 수작.", venue: "샤롯데씨어터", duration: "155분", targetAge: ["2030"], bookingUrl: "https://tickets.interpark.com/search?keyword=하데스타운" },
+            { id: 13, title: "빌리 엘리어트", category: "라이선스", genre: "드라마 / 코미디", image: "https://images.unsplash.com/photo-1508700915892-45ecd05ae2ad?q=80&w=800&auto=format&fit=crop", description: "광산촌 소년 빌리가 발레를 통해 꿈을 향해 나아가는 이야기. 소년 배우들의 폭발적인 에너지를 느껴보세요.", venue: "대성 디큐브아트센터", duration: "160분", targetAge: ["전연령", "10대"], bookingUrl: "https://tickets.interpark.com/search?keyword=빌리엘리어트" },
+            { id: 14, title: "킹키부츠", category: "라이선스", genre: "코미디 / 드라마", image: "https://images.unsplash.com/photo-1496293455970-f8581aae0e3c?q=80&w=800&auto=format&fit=crop", description: "폐업 위기 공장을 물려받은 찰리가 드랙퀸 롤라를 만나 성공하는 유쾌한 드라마.", venue: "충무아트센터", duration: "155분", targetAge: ["2030", "10대"], bookingUrl: "https://tickets.interpark.com/search?keyword=킹키부츠" },
+            { id: 15, title: "시라노", category: "라이선스", genre: "로맨스 / 드라마", image: "https://images.unsplash.com/photo-1464375117522-1311d6a5b81f?q=80&w=800&auto=format&fit=crop", description: "커다란 코를 가진 검객 시라노가 록산을 향한 지독한 짝사랑을 대신 고백하며 벌어지는 이야기.", venue: "예술의전당", duration: "170분", targetAge: ["2030", "4050"], bookingUrl: "https://tickets.interpark.com/search?keyword=시라노" },
+            { id: 16, title: "마틸다", category: "라이선스", genre: "판타지 / 코미디", image: "https://images.unsplash.com/photo-1503095396549-807a89ad1716?q=80&w=800&auto=format&fit=crop", description: "특별한 능력을 가진 소녀 마틸다가 독재적인 교장에게 맞서 자신의 삶을 찾아가는 가족 뮤지컬.", venue: "대성 디큐브아트센터", duration: "160분", targetAge: ["전연령", "10대"], bookingUrl: "https://tickets.interpark.com/search?keyword=마틸다" },
+            { id: 17, title: "물랑루즈!", category: "라이선스", genre: "로맨스 / 드라마", image: "https://images.unsplash.com/photo-1510915361894-db8b60106cb1?q=80&w=800&auto=format&fit=crop", description: "19세기 파리, 젊은 시인 크리스티앙과 무희 사틴의 운명적인 사랑을 화려한 팝 음악과 함께 그린 대작.", venue: "블루스퀘어", duration: "165분", targetAge: ["2030"], bookingUrl: "https://tickets.interpark.com/search?keyword=물랑루즈" },
+            { id: 18, title: "엘리자벳", category: "라이선스", genre: "역사 / 판타지", image: "https://images.unsplash.com/photo-1543157145-f78c636d023d?q=80&w=800&auto=format&fit=crop", description: "황후 엘리자벳과 그녀를 유혹하는 '죽음(Tod)'의 치명적인 사랑과 고뇌.", venue: "세종문화회관", duration: "170분", targetAge: ["2030", "4050"], bookingUrl: "https://tickets.interpark.com/search?keyword=엘리자벳" }
+        ];
+
+        // UI Element References
+        const musicalGrid = document.getElementById('musicalGrid');
+        const noResults = document.getElementById('noResults');
+        const searchInput = document.getElementById('searchInput');
+        const viewTitle = document.getElementById('viewTitle');
+        const viewSubtitle = document.getElementById('viewSubtitle');
+        const wishlistToggle = document.getElementById('wishlistToggle');
+        const wishlistCount = document.getElementById('wishlistCount');
+        const wishlistIcon = document.getElementById('wishlistIcon');
+
+        // Firebase Auth & Firestore Sync
+        const initFirebase = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        syncWishlist();
+                    }
+                });
+            } catch (error) {
+                console.error("Firebase Auth Error:", error);
+            }
+        };
+
+        const syncWishlist = () => {
+            if (!userId) return;
+            const wishlistDocRef = doc(db, 'artifacts', appId, 'users', userId, 'data', 'wishlist');
+            
+            onSnapshot(wishlistDocRef, (snapshot) => {
+                if (snapshot.exists()) {
+                    const data = snapshot.data();
+                    wishlist = new Set(data.itemIds || []);
+                } else {
+                    wishlist = new Set();
+                }
+                updateWishlistUI();
+                renderMusicals();
+            }, (error) => {
+                console.error("Firestore Sync Error:", error);
+            });
+        };
+
+        const updateFirestoreWishlist = async () => {
+            if (!userId) return;
+            const wishlistDocRef = doc(db, 'artifacts', appId, 'users', userId, 'data', 'wishlist');
+            try {
+                await setDoc(wishlistDocRef, { itemIds: Array.from(wishlist) });
+            } catch (error) {
+                console.error("Firestore Write Error:", error);
+            }
+        };
+
+        // Render Function
+        const renderMusicals = () => {
+            const filtered = musicals.filter(m => {
+                const matchesGenre = currentGenre === 'all' || m.genre.includes(currentGenre);
+                const matchesAge = currentAge === 'all' || m.targetAge.includes(currentAge);
+                const query = searchQuery.toLowerCase();
+                const matchesSearch = m.title.toLowerCase().includes(query) || m.venue.toLowerCase().includes(query);
+                const matchesWishlist = !showWishlistOnly || wishlist.has(m.id);
+                
+                return matchesGenre && matchesAge && matchesSearch && matchesWishlist;
+            });
+
+            if (showWishlistOnly) {
+                viewTitle.innerText = "나의 마음함";
+                viewSubtitle.innerText = "마음에 드는 공연들을 모두 모았습니다.";
+            } else if (currentGenre !== 'all' || currentAge !== 'all' || searchQuery !== '') {
+                viewTitle.innerText = "검색 결과";
+                viewSubtitle.innerText = "필터링된 뮤지컬 목록을 확인하세요.";
+            } else {
+                viewTitle.innerText = "전체 공연 목록";
+                viewSubtitle.innerText = "현재 상영 중이거나 예정인 뮤지컬을 확인하세요.";
+            }
+
+            if (filtered.length === 0) {
+                musicalGrid.classList.add('hidden');
+                noResults.classList.remove('hidden');
+            } else {
+                musicalGrid.classList.remove('hidden');
+                noResults.classList.add('hidden');
+                musicalGrid.innerHTML = filtered.map(m => {
+                    const isLiked = wishlist.has(m.id);
+                    return `
+                    <div class="musical-card rounded-[32px] overflow-hidden border border-slate-200 cursor-pointer shadow-sm group relative">
+                        <div class="relative h-64 overflow-hidden" onclick="window.openMusicalModal(${m.id})">
+                            <img src="${m.image}" alt="${m.title}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
+                            <div class="info-overlay absolute inset-0 bg-indigo-900/80 backdrop-blur-sm p-6 flex flex-col justify-center text-white z-10">
+                                <p class="text-[10px] font-bold uppercase tracking-widest text-indigo-300 mb-2">공연 요약</p>
+                                <p class="text-sm leading-relaxed mb-4 line-clamp-4">${m.description}</p>
+                                <div class="flex items-center gap-2 mt-auto text-xs font-semibold text-white/80">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    런타임 ${m.duration}
+                                </div>
+                            </div>
+                            <div class="absolute top-4 left-4 flex flex-wrap gap-1 z-20">
+                                <span class="bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-md">${m.category}</span>
+                            </div>
+                        </div>
+                        <button onclick="window.toggleWishlist(${m.id}, event)" class="heart-btn absolute top-4 right-4 z-30 bg-white/90 p-2 rounded-full shadow-md hover:bg-white transition-all">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ${isLiked ? 'fill-pink-500 text-pink-500' : 'text-slate-400'}" fill="${isLiked ? 'currentColor' : 'none'}" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                            </svg>
+                        </button>
+                        <div class="p-7 bg-white" onclick="window.openMusicalModal(${m.id})">
+                            <p class="text-indigo-600 text-xs font-bold mb-1.5 uppercase tracking-wide">${m.genre}</p>
+                            <h3 class="text-xl font-bold mb-3 text-slate-800 group-hover:text-indigo-600 transition-colors">${m.title}</h3>
+                            <div class="flex items-center text-slate-400 text-xs gap-3">
+                                <span class="flex items-center gap-1.5">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    </svg>
+                                    ${m.venue}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                `; }).join('');
+            }
+        };
+
+        // Window exposed functions for HTML event handlers
+        window.toggleWishlist = async (id, event) => {
+            if (event) event.stopPropagation();
+            if (wishlist.has(id)) wishlist.delete(id);
+            else wishlist.add(id);
+            await updateFirestoreWishlist();
+        };
+
+        window.updateWishlistUI = () => {
+            wishlistCount.innerText = wishlist.size;
+            if (showWishlistOnly) {
+                wishlistToggle.classList.add('bg-pink-600', 'text-white');
+                wishlistToggle.classList.remove('bg-pink-50', 'text-pink-600');
+                wishlistIcon.classList.remove('text-pink-600');
+                wishlistIcon.setAttribute('fill', 'white');
+                wishlistIcon.classList.add('text-white');
+            } else {
+                wishlistToggle.classList.remove('bg-pink-600', 'text-white');
+                wishlistToggle.classList.add('bg-pink-50', 'text-pink-600');
+                wishlistIcon.setAttribute('fill', 'none');
+                wishlistIcon.classList.remove('text-white');
+                wishlistIcon.classList.add('text-pink-600');
+            }
+        };
+
+        window.openMusicalModal = (id) => {
+            const m = musicals.find(item => item.id === id);
+            if (!m) return;
+            const isLiked = wishlist.has(m.id);
+
+            const modalContent = document.getElementById('modalContent');
+            modalContent.innerHTML = `
+                <div class="flex flex-col md:flex-row">
+                    <div class="md:w-5/12">
+                        <img src="${m.image}" alt="${m.title}" class="w-full h-full object-cover min-h-[400px]">
+                    </div>
+                    <div class="md:w-7/12 p-10 flex flex-col relative">
+                        <div class="mb-auto">
+                            <div class="flex justify-between items-start mb-4 pr-12">
+                                <div class="flex flex-wrap gap-2">
+                                    <span class="text-indigo-600 font-bold text-[10px] tracking-widest uppercase border border-indigo-200 px-2 py-0.5 rounded">${m.category}</span>
+                                    <span class="text-slate-500 font-bold text-[10px] tracking-widest uppercase border border-slate-200 px-2 py-0.5 rounded">${m.targetAge.join(', ')} 추천</span>
+                                </div>
+                                <button onclick="window.toggleWishlist(${m.id}); window.openMusicalModal(${m.id})" class="text-pink-500 hover:scale-110 transition-transform">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="${isLiked ? 'currentColor' : 'none'}" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <h2 class="text-3xl md:text-4xl font-extrabold mb-6 text-slate-900 leading-tight">${m.title}</h2>
+                            <p class="text-slate-600 text-base leading-relaxed mb-8">${m.description}</p>
+                            <div class="grid grid-cols-2 gap-8 py-6 border-y border-slate-100">
+                                <div>
+                                    <p class="text-slate-400 text-[10px] mb-1.5 uppercase tracking-widest font-bold">공연장소</p>
+                                    <p class="text-sm font-semibold text-slate-800">${m.venue}</p>
+                                </div>
+                                <div>
+                                    <p class="text-slate-400 text-[10px] mb-1.5 uppercase tracking-widest font-bold">공연시간</p>
+                                    <p class="text-sm font-semibold text-slate-800">${m.duration}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <a href="${m.bookingUrl}" target="_blank" class="w-full mt-10 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl transition-all shadow-xl shadow-indigo-100 flex items-center justify-center gap-2 group">
+                            공식 예매처로 이동
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            `;
+            document.getElementById('musicalModal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        };
+
+        window.resetFilters = () => {
+            currentGenre = 'all';
+            currentAge = 'all';
+            searchQuery = '';
+            showWishlistOnly = false;
+            searchInput.value = '';
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                if (btn.dataset.value === 'all') btn.classList.add('active-filter');
+                else btn.classList.remove('active-filter');
+            });
+            window.updateWishlistUI();
+            renderMusicals();
+        };
+
+        window.resetToAll = () => { window.resetFilters(); };
+
+        // Event Listeners
+        wishlistToggle.addEventListener('click', () => {
+            showWishlistOnly = !showWishlistOnly;
+            window.updateWishlistUI();
+            renderMusicals();
+        });
+
+        searchInput.addEventListener('input', (e) => {
+            searchQuery = e.target.value;
+            showWishlistOnly = false;
+            window.updateWishlistUI();
+            renderMusicals();
+        });
+
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const type = btn.dataset.type;
+                const value = btn.dataset.value;
+                const group = type === 'genre' ? 'genreContainer' : 'ageContainer';
+                document.getElementById(group).querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active-filter'));
+                btn.classList.add('active-filter');
+                if (type === 'genre') currentGenre = value;
+                else currentAge = value;
+                showWishlistOnly = false;
+                window.updateWishlistUI();
+                renderMusicals();
+            });
+        });
+
+        document.getElementById('closeModal').addEventListener('click', () => {
+            document.getElementById('musicalModal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        });
+
+        window.addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal-overlay')) {
+                document.getElementById('musicalModal').classList.add('hidden');
+                document.body.style.overflow = 'auto';
+            }
+        });
+
+        // Initialize App
+        initFirebase();
+        renderMusicals();
+    </script>
+</body>
+</html>
